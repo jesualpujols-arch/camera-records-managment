@@ -2,24 +2,83 @@ from os import listdir
 from os import remove
 from os.path import isfile
 from os.path import join
+from os.path import exists
 import datetime
 import time
 from plyer import notification
+def notificacion_log(fecha1, fecha2 = None , fecha3 = None , accion = None, accion2 = None ):
+    if accion == 'borrar':
+        #notificacion de borrado
+        notification.notify(
+            title = "Atencion! Grabaciones de camara han sido borradas",
+            message = f"Los archivos entre las fechas {fecha2} y {fecha3} han sido borrados hoy",
+            timeout = 30
+        )
+        #log de borrado
+        fechas_texto = "\n".join(accion2)
+        notificacion_borrado = (
+            f"[Fecha de ejecucion: {fecha1}]\n"
+            "[EVENTO: Eliminación completada.]\n"
+            "[RANGO AFECTADO:]\n"
+            f"[{fecha2}  →  {fecha3}]\n"
+            "[FECHAS ELIMINADAS:]\n"
+            f"{fechas_texto}\n"
+        )
+    elif accion == 'notificar':
+        
+        #notificacion de aviso
+        notification.notify(
+            title = "Atencion! Grabaciones de camara que seran borrados",
+            message = f"Los archivos entre las fechas {fecha2} y {fecha3} seran eliminados el dia de mañana",
+            timeout = 30
+        )
+        
+        #log de notifacion
+        fechas_texto = "\n".join(accion2)
+        notificacion_borrado = (
+            f"[Fecha de ejecucion: {fecha1}]\n"
+            "[EVENTO: Aviso de eliminación programada de grabaciones]\n"
+            "[RANGO AFECTADO:]\n"
+            f"[{fecha2}  →  {fecha3}]\n"
+            "[FECHAS A ELIMINAR:]\n"
+            f"{fechas_texto}\n"
+            )
+    else:
+        
+        #log de revision
+        notificacion_borrado = (
+        f"[Fecha de ejecucion: {fecha1}]\n"
+        "[EVENTO: SIN ACCION]\n"
+        "[DETALLE:]\n"
+        'No hay suficientes dias para notificar.\n'
+        )
+    with open("logs de camaras","a") as archivo:
+        archivo.write(notificacion_borrado)
+def borrar_archivo(a, b):
+    for i in a:
+        if i in b:
+            for archivo in b[i]:
+                remove(archivo)
+
+#creamos un bucle infinito
 while True:
+    
+    #actualizamos fecha y log
     fecha_hoy = datetime.datetime.now()
-    with open("logs de camaras") as archivo:
-        ultimo_log = archivo.readlines()
-    ultimo = []
-    for i in ultimo_log:
-        z = i.strip()
-        ultimo.append(z)
-    ultimo_final = []
-    for i in ultimo:
-        if "Fecha de ejecucion:" in i:
-            ultimo_final.append(i)
+    if exists("logs de camaras"):
+        with open("logs de camaras") as archivo:
+            ultimo_log = archivo.readlines()
+    else:
+        ultimo_final == []
+    
+    #evitamos que se rompa la primera vez
+    ultimo = [i.strip() for i in ultimo_log]
+    ultimo_final = [i for i in ultimo if "Fecha de ejecucion:" in i]
     if ultimo_final == []:
         ejecutar = True
     else:
+        
+        #evitar que ejecute dos veces en un dia
         log_final = ultimo_final[-1]
         log_ultimo = log_final.split(" ")
         log_final = log_ultimo[3]
@@ -31,137 +90,70 @@ while True:
         else:
             ejecutar = False
     if ejecutar:
+            
+            #evitamos que se ejecute fuera de horario
             hora = fecha_hoy.time()
             horario1 = datetime.time(13, 45)
             horario2 = datetime.time(14,15)
             if horario1 <= hora <= horario2:
+                
+                #creando la ruta de los archivos
                 ruta = r"G:\camaras\video\FSDMP\video\FSDMP"
                 carpeta = listdir(ruta)
-                ruta_videos = []
-                nombres_completos = []
-                nombres = []
-                dias = []
-                days = []
-                fechas_archivos = []
-                notificacion = []
-                por_notificar = []
-                dia_grabaciones = {}
+                ruta_videos = [join(ruta, i) for i in carpeta if isfile(join(ruta, i))]
                 for i in carpeta:
-                    z = join(ruta, i)
+                    ruta_videos = [join(ruta, i)]
+                ruta2 = []
+                for z in ruta_videos:
                     if isfile(z):
-                        ruta_videos.append(z)
-                for i in ruta_videos:
-                    z = i.split("_")
-                    nombres_completos.append(z)
-                for i in nombres_completos:
-                    z = i[1]
-                    nombres.append(z)
-                for i in nombres:
-                    z = datetime.datetime.strptime(i, "%Y-%m-%d")
-                    fechas_archivos.append(z)
-                for i in fechas_archivos:
-                    z = fecha_hoy - i
-                    dias.append(z)
-                for i in dias:
-                    z = i.days
-                    days.append(z)
-                for archivo, fecha, dia in zip(ruta_videos, fechas_archivos, days):
-                    notificacion.append(fecha)
-                fechas_ordenadas = list(set(notificacion))
-                fechas_ordenadas.sort()
+                        ruta2.append(z)
+                
+                #sacando la fecha de los archivos y convitiendolos en fechas
+                fechas_archivos = [datetime.datetime.strptime(i.split('_')[1], "%Y-%m-%d") for i in ruta2]
+                
+                #separando archivos por edad
+                dia_grabaciones = {}
                 for i in ruta_videos:
                     z = i.split("_")[1]
                     if z not in dia_grabaciones:
                         dia_grabaciones[z] = []
                     dia_grabaciones[z].append(i)
-                for i in dia_grabaciones:
-                    z = datetime.datetime.strptime(i, "%Y-%m-%d")
-                    y = fecha_hoy - z
-                    x = y.days
-                    if x > 21:
-                        por_notificar.append(i)
+                por_notificar = [i for i in dia_grabaciones if fecha_hoy - datetime.datetime.strptime(i, "%Y-%m-%d") > 21]
+                
+                #separando dias viejos por grupo de 7 o mas dias 
                 if len(por_notificar) >= 7:
                     por_notificar.sort()
-                    primera_fecha = ""
-                    ultima_fecha = ""
                     primera_fecha = por_notificar[0]
                     ultima_fecha = por_notificar[-1]
-                    ya_notificadas = []
-                    ya_notificados = []
+                    
+                    #filtrado de logs
                     with open("logs de camaras") as archivo:
                         ya_notificadas = archivo.readlines()
-                    for i in ya_notificadas:
-                        z = i.strip()
-                        ya_notificados.append(z)
-                    notificadas = []
-                    notificar = []
-                    for i in ya_notificados:
-                        if len(i) == 10:
-                            if "-" in i:
-                                notificadas.append(i)
-                    for i in por_notificar:
-                        if i not in notificadas:
-                            notificar.append(i)
-                    notification.notify(
-                        title = "Atencion! Grabaciones de camara que seran borrados",
-                        message = f"Los archivos entre las fechas {primera_fecha} y {ultima_fecha} seran eliminados el dia de mañana",
-                        timeout = 30
-                    )
-                    print(fecha_hoy)
-                    print(primera_fecha)
-                    print(ultima_fecha)
-                    print(notificar)
-                    fechas_texto = "\n".join(notificar)
-                    notificacion_final = (
-                        f"[Fecha de ejecucion: {fecha_hoy}]\n"
-                        "[EVENTO: Aviso de eliminación programada de grabaciones]\n"
-                        "[RANGO AFECTADO:]\n"
-                        f"[{primera_fecha}  →  {ultima_fecha}]\n"
-                        "[FECHAS A ELIMINAR:]\n"
-                        f"{fechas_texto}\n"
-                    )
-                    with open("logs de camaras","a") as archivo:
-                        archivo.write(notificacion_final)
+                    ya_notificados = [i.strip() for i in ya_notificadas]
+                    notificadas = {i.strip() for i in ya_notificadas if len(i.strip()) == 10}
                     
-                    borrar = []
-                    for i in notificadas:
-                        if i not in notificar:
-                            borrar.append(i)
-                    for D in borrar:
-                        if D in dia_grabaciones:
-                            for archivo in dia_grabaciones[D]: 
-                                remove(archivo)
+                    #verificando que se notifique correctamente 
+                    notificar = [i for i in por_notificar if i not in notificadas]
+                    
+                    #notificacion de aviso
+                    notificacion_log(fecha_hoy, primera_fecha, ultima_fecha, 'notificar', notificar)
+                    
+                    #borrado de archivos
+                    borrar = [i for i in notificadas if i not in notificar]
+                    borrar_archivo(borrar, dia_grabaciones)
+                    
+                    #notificando el borrado
                     borrar.sort()
                     if borrar != []:
                         primera_borrado = borrar[0]
                         ultima_borrado = borrar[-1]
-                        notification.notify(
-                            title = "Atencion! Grabaciones de camara han sido borradas",
-                            message = f"Los archivos entre las fechas {primera_borrado} y {ultima_borrado} han sido borrados hoy",
-                            timeout = 30
-                        )
-                        print(fecha_hoy)
-                        print(primera_borrado)
-                        print(ultima_borrado)
-                        print(borrar)
-                        fechas_texto = "\n".join(borrar)
-                        notificacion_borrado = (
-                            f"[Fecha de ejecucion: {fecha_hoy}]\n"
-                            "[EVENTO: Eliminación completada.]\n"
-                            "[RANGO AFECTADO:]\n"
-                            f"[{primera_borrado}  →  {ultima_borrado}]\n"
-                            "[FECHAS ELIMINADAS:]\n"
-                            f"{fechas_texto}\n"
-                        )
-                        with open("logs de camaras","a") as archivo:
-                            archivo.write(notificacion_borrado)
+                        
+                        #notificacion de borrado
+                        notificacion_log(fecha_hoy, primera_fecha, ultima_fecha, 'borrar', borrar)
                 else:
-                    notificacion_nada = (
-                        f"[Fecha de ejecucion: {fecha_hoy}]\n"
-                        "[EVENTO: SIN ACCION]\n"
-                        "[DETALLE:]\n"
-                        'No hay suficientes dias para notificar.\n'
-                    )
-                    with open("logs de camaras","a") as archivo:
-                        archivo.write(notificacion_nada)
+                    
+                    #log de revision
+                    notificacion_log(fecha_hoy)
+    
+    #tiempo que el script duerme
     time.sleep(6*3600)
