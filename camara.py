@@ -69,7 +69,7 @@ while True:
         with open("logs de camaras") as archivo:
             ultimo_log = archivo.readlines()
     else:
-        ultimo_final == []
+        ultimo_log = []
     
     #evitamos que se rompa la primera vez
     ultimo = [i.strip() for i in ultimo_log]
@@ -101,15 +101,6 @@ while True:
                 ruta = r"G:\camaras\video\FSDMP\video\FSDMP"
                 carpeta = listdir(ruta)
                 ruta_videos = [join(ruta, i) for i in carpeta if isfile(join(ruta, i))]
-                for i in carpeta:
-                    ruta_videos = [join(ruta, i)]
-                ruta2 = []
-                for z in ruta_videos:
-                    if isfile(z):
-                        ruta2.append(z)
-                
-                #sacando la fecha de los archivos y convitiendolos en fechas
-                fechas_archivos = [datetime.datetime.strptime(i.split('_')[1], "%Y-%m-%d") for i in ruta2]
                 
                 #separando archivos por edad
                 dia_grabaciones = {}
@@ -118,7 +109,7 @@ while True:
                     if z not in dia_grabaciones:
                         dia_grabaciones[z] = []
                     dia_grabaciones[z].append(i)
-                por_notificar = [i for i in dia_grabaciones if fecha_hoy - datetime.datetime.strptime(i, "%Y-%m-%d") > 21]
+                por_notificar = [i for i in dia_grabaciones if (fecha_hoy - datetime.datetime.strptime(i, "%Y-%m-%d")).days > 21]
                 
                 #separando dias viejos por grupo de 7 o mas dias 
                 if len(por_notificar) >= 7:
@@ -144,12 +135,12 @@ while True:
                     
                     #notificando el borrado
                     borrar.sort()
-                    if borrar != []:
+                    if borrar:
                         primera_borrado = borrar[0]
                         ultima_borrado = borrar[-1]
                         
                         #notificacion de borrado
-                        notificacion_log(fecha_hoy, primera_fecha, ultima_fecha, 'borrar', borrar)
+                        notificacion_log(fecha_hoy, primera_borrado, ultima_borrado, 'borrar', borrar)
                 else:
                     
                     #log de revision
